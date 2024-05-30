@@ -7,7 +7,7 @@ namespace SistemskoProjekat2
     {
         private static void Main(string[] args)
         {
-            string rootPath = "C:\\Documents_Fax\\6 semestar\\Sistemsko programiranje\\Projekti\\root";
+            string rootPath = "C:\\Documents\\Fax\\6 semestar\\Sistemsko programiranje\\root";
 
             ConversionService conversionService = new ConversionService(rootPath);
 

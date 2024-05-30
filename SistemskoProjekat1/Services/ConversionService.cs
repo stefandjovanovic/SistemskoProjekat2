@@ -17,26 +17,27 @@ namespace SistemskoProjekat2.Services
             this.rootFolder = rootFolder;
         }
 
-        public string GetRequest(HttpListenerRequest request, Cache.Cache cache )
+        public async Task<string> GetRequest(HttpListenerRequest request, Cache.Cache cache)
         {
 
             string url = request.RawUrl ?? "";
 
             Console.WriteLine("\n--------------Primljen je zahtev: " + url + "\n");
 
-            if(url == "/" || url=="")
+            if (url == "/" || url == "")
             {
                 Console.WriteLine("Nije zahtevan fajl");
                 return "Niste zahtevali fajl";
             }
             string fileName = url.Split('/')[1];
             string path = Path.Combine(rootFolder, fileName);
-          
+
 
             string? cacheData = cache.ReadCache(fileName);
             string data;
 
-            if (cacheData != null){
+            if (cacheData != null)
+            {
                 Console.WriteLine($"Citanje podataka iz kesa za fajl {fileName}");
                 return cacheData;
             }
@@ -48,14 +49,14 @@ namespace SistemskoProjekat2.Services
                     {
                         Console.WriteLine("Konverzija txt u bin");
 
-                        data = this.TransformTxtToBin(path);
+                        data = await this.TransformTxtToBinAsync(path);
                         cache.WriteToCache(fileName, data);
                         return data;
                     }
                     else if (path.EndsWith(".bin"))
                     {
                         Console.WriteLine("Konverzija bin u txt");
-                        data = this.TransformBinToTxt(path);
+                        data = await this.TransformBinToTxtAsync(path);
                         cache.WriteToCache(fileName, data);
                         return data;
                     }
@@ -76,22 +77,47 @@ namespace SistemskoProjekat2.Services
                 }
             }
 
-            
+
 
         }
 
-        private string TransformTxtToBin(string path)
+        private async Task<string> TransformTxtToBinAsync(string path)
         {
-            byte[] bytes = File.ReadAllBytes(path);
+            byte[] bytes = await File.ReadAllBytesAsync(path);
+            //upisemo u bin fajl
+            string writePath = path.Replace(".txt", ".bin");
+            await WriteToBin(writePath, bytes);
+
             string data = BitConverter.ToString(bytes).Replace("-", " ");
             return data;
         }
-        private string TransformBinToTxt(string path)
+        private async Task<string> TransformBinToTxtAsync(string path)
         {
-            byte[] bytes = File.ReadAllBytes(path);
+            byte[] bytes = await File.ReadAllBytesAsync(path);
             string data = System.Text.Encoding.Default.GetString(bytes);
+            //upisemo u txt fajl
+            string writePath = path.Replace(".bin", ".txt");
+            await WriteToTxt(writePath, data);
+
             return data;
         }
 
+        private async Task WriteToBin(string path, byte[] bytes)
+        {
+
+            if (!File.Exists(path))
+            {
+                await File.WriteAllBytesAsync(path, bytes);
+            }
+
+        }
+
+        private async Task WriteToTxt(string path, string data)
+        {
+            if (!File.Exists(path))
+            {
+                await File.WriteAllTextAsync(path, data);
+            }
+        }
     }
 }

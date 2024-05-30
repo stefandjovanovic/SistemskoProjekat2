@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -10,11 +11,11 @@ namespace SistemskoProjekat2
     public class WebServer
     {
         private readonly HttpListener listener = new HttpListener();
-        private readonly Func<HttpListenerRequest, Cache.Cache, string> responderMethod;
+        private readonly Func<HttpListenerRequest, Cache.Cache, Task<string>> responderMethod;
         private Cache.Cache cache;
 
 
-        public WebServer(Func<HttpListenerRequest, Cache.Cache, string> responderMethod, int CacheCap, params string[] prefixes)
+        public WebServer(Func<HttpListenerRequest, Cache.Cache, Task<string>> responderMethod, int CacheCap, params string[] prefixes)
         {
             if (prefixes == null || prefixes.Length == 0)
             {
@@ -40,18 +41,14 @@ namespace SistemskoProjekat2
 
         public void Run()
         {
-            ThreadPool.QueueUserWorkItem(o =>
+            Task.Run( async () =>
             {
                 Console.WriteLine("Webserver je pokrenut...");
                 try
                 {
                     while (listener.IsListening)
                     {
-                        ThreadPool.QueueUserWorkItem(c =>
-                        {
-                            //HttpListenerContext context = _listener.GetContext();
-                            HttpListenerContext? context = c as HttpListenerContext;
-
+                            HttpListenerContext context = await listener.GetContextAsync();
                             try
                             {
                                 if (context == null)
@@ -61,15 +58,24 @@ namespace SistemskoProjekat2
 
                                 HttpListenerRequest request = context.Request;
                                 HttpListenerResponse response = context.Response;
-                                
+
 
                                 if (request.RawUrl == "/favicon.ico")
                                 {
                                     return;
                                 }
 
+                                Stopwatch stopwatch = new Stopwatch();
 
-                                string rstr = responderMethod(request, this.cache);
+                                // Begin timing
+                                stopwatch.Start();
+
+                                string rstr = await responderMethod(request, this.cache);
+                                stopwatch.Stop();
+
+                                // Write result
+                                Console.WriteLine("Proteklo vreme: " + stopwatch.Elapsed.TotalMilliseconds);
+
                                 byte[] buf = Encoding.UTF8.GetBytes(rstr);
                                 response.ContentLength64 = buf.Length;
                                 response.OutputStream.Write(buf, 0, buf.Length);
@@ -87,7 +93,7 @@ namespace SistemskoProjekat2
                                     context.Response.OutputStream.Close();
                                 }
                             }
-                        }, listener.GetContext());
+
                     }
                 }
                 catch (Exception ex)
